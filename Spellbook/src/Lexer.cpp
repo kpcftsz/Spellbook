@@ -1,7 +1,5 @@
 #include "SP.h"
 
-#include <regex>
-
 namespace sp
 {
 	Lexer::Lexer()
@@ -26,7 +24,16 @@ namespace sp
 
 		std::cout << "----------\n";
 
+		std::regex dialogue_regex(GROUP_DIALOGUE);
+		std::smatch dialogue_match;
+		while (std::regex_search(blocks[1], dialogue_match, dialogue_regex))
+		{
+			std::string name = dialogue_match.str((GROUP_DIALOGUE >> 8) & 0xFF);
+			std::string message = dialogue_match.str((GROUP_DIALOGUE) & 0xFF);
+			std::string statement = "\nSay \"" + name + "\" \"" + normalize_paragraph(message) + "\"\n";
 
+			blocks[1] = std::string(dialogue_match.prefix()) + statement + std::string(dialogue_match.suffix());
+		}
 
 		LexerOutput lines;
 		split(lines, blocks[1], "\n");
@@ -34,10 +41,11 @@ namespace sp
 		LexerOutput object_strs;
 		for (auto& l : lines)
 		{
+			if (l.empty() || std::regex_search(l, std::regex("^\\s+$")))
+				continue;
 			tokenize_list(object_strs, l);
 			std::cout << "--------\n";
 		}
-
 	}
 
 	//
@@ -51,10 +59,10 @@ namespace sp
 			{
 				std::smatch match = *it;
 
-				// The output will be an interleaved list of strings, representable like this:
-				// [[Name, Body], [Name, Body], ...]
-				output.push_back(match.str(1));
-				output.push_back(match.str(2));
+				// The output will be an interleaved list of strings, e.g.
+				// [Name, Body, Name, Body, ...]
+				output.push_back(match.str((GROUP_BLOCK >> 8) & 0xFF));
+				output.push_back(match.str((GROUP_BLOCK) & 0xFF));
 			}
 		}
 		catch (std::regex_error& e)
@@ -81,8 +89,6 @@ namespace sp
 				GROUP_LISTS
 			);
 
-			std::cout << regex_stream.str() << std::endl;
-
 			std::regex tokenization_regex(regex_stream.str());
 
 			for (auto it = std::sregex_iterator(input.begin(), input.end(), tokenization_regex); it != std::sregex_iterator(); it++)
@@ -93,34 +99,27 @@ namespace sp
 					switch (i)
 					{
 					case GROUP_SYMBOLS:
-						// Symbol
 						if (!match.str(i).empty())
 							std::cout << std::string(ident*4, ' ') << "Symbol: " + match.str(i) + "\n";
 						break;
 					case GROUP_NUMBERS:
-						// Number
 						if (!match.str(i).empty())
 							std::cout << std::string(ident * 4, ' ') << "Number: " + match.str(i) + "\n";
 						break;
 					case GROUP_LISTS:
-						// List
 						if (!match.str(i).empty())
 						{
 							std::cout << std::string(ident * 4, ' ') << "List: {\n";
-
 							LexerOutput out;
 							tokenize_list(out, match.str(i), ++ident);
-
 							std::cout << std::string((ident-- - 1) * 4, ' ') << "}\n";
 						}
 						break;
 					case GROUP_STRINGS:
-						// String
 						if (!match.str(i).empty())
 						{
 							std::string str = match.str(i);
-							std::string trimmed = str.substr(1, str.size() - 2);
-							// Use `trimmed` later
+							std::string trimmed = str.substr(1, str.size() - 2); // For use later
 							std::cout << std::string(ident * 4, ' ') << "String: " + str + "\n";
 						}
 						break;
@@ -152,5 +151,13 @@ namespace sp
 			last_pos = input.find_first_not_of(delimiters, pos);
 			pos = input.find_first_of(delimiters, last_pos);
 		}
+	}
+
+	std::string Lexer::normalize_paragraph(std::string text)
+	{
+		text = std::regex_replace(text, std::regex("^[\\s]+|[\\s]+$"), "");
+		text = std::regex_replace(text, std::regex("[\\s]+"), " ");
+
+		return text;
 	}
 }

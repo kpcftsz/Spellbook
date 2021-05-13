@@ -152,12 +152,13 @@ namespace sp
 
 	};
 
-	inline static constexpr TokenGroup GROUP_BLOCK      = {"([A-Za-z0-9_\\-]+)\\s\\{([^{}]+)\\}", -1};
-	inline static constexpr TokenGroup GROUP_WHITESPACE = {"[\\s,]+", 0};
-	inline static constexpr TokenGroup GROUP_NUMBERS    = {"([+-]?([0-9]+([.][0-9]*)?|[.][0-9]+))", 1};
-	inline static constexpr TokenGroup GROUP_SYMBOLS    = {"(([A-Za-z\\-_]+)([0-9]+)?)", 4};
-	inline static constexpr TokenGroup GROUP_STRINGS    = {"(\"(?:[^\"\\\\]|\\\\.)*\")", 7};
-	inline static constexpr TokenGroup GROUP_LISTS      = {"(\\[(.*)\\])", 9};
+	inline static constexpr TokenGroup GROUP_DIALOGUE   = {"([A-Za-z0-9\\-_]+)(\\s+)?<([^<>]*)(\\s+)?>", 0x0103};
+	inline static constexpr TokenGroup GROUP_BLOCK      = {"([A-Za-z0-9_\\-]+)\\s\\{([^{}]+)\\}", 0x0102};
+	inline static constexpr TokenGroup GROUP_WHITESPACE = {"[\\s,]+", 0x0000};
+	inline static constexpr TokenGroup GROUP_NUMBERS    = {"([+-]?([0-9]+([.][0-9]*)?|[.][0-9]+))", 0x0001};
+	inline static constexpr TokenGroup GROUP_SYMBOLS    = {"(([A-Za-z\\-_]+)([0-9]+)?)", 0x0004};
+	inline static constexpr TokenGroup GROUP_STRINGS    = {"(\"(?:[^\"\\\\]|\\\\.)*\")", 0x0007};
+	inline static constexpr TokenGroup GROUP_LISTS      = {"(\\[(.*)\\])", 0x0009};
 
 	using LexerOutput = std::vector<std::string>;
 
@@ -174,7 +175,7 @@ namespace sp
 		ErrCode tokenize_list(LexerOutput& output, const std::string& input, int ident = 0);
 
 		void split(LexerOutput& output, const std::string& input, const std::string& delimiters);
-		
+
 		template <typename Arg>
 		std::ostream& build_tokenizer_regex(std::ostream& o, Arg&& arg)
 		{
@@ -188,6 +189,8 @@ namespace sp
 
 			return build_tokenizer_regex(o, std::forward<Args>(args)...);
 		}
+
+		std::string normalize_paragraph(std::string text);
 
 	};
 	
