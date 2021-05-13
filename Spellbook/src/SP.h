@@ -8,6 +8,12 @@
 #include <variant>
 #include <iostream>
 #include <type_traits>
+#include <algorithm>
+#include <numeric>
+#include <sstream>
+#include <iostream>
+#include <fstream>
+#include <regex>
 
 namespace sp
 {
@@ -31,8 +37,23 @@ namespace sp
 		OBJ_BUILT_IN
 	};
 
+
+
 	/*
+	 * -
+	 * Utils
+	 * -
+	 */
+
+	ErrCode load_file(const std::string& path, std::string& out);
+	void abort(ErrCode status);
+
+
+
+	/*
+	 * -
 	 * Core
+	 * -
 	 */
 
 	class Object
@@ -72,8 +93,8 @@ namespace sp
 			}
 			else
 			{
-				std::cerr << "No available visitor for specified type" << std::endl;
-				return Object { OBJ_NIL };
+				std::cerr << "Fatal error: No available visitor for specified type" << std::endl;
+				abort(FAILURE);
 			}
 
 			return res;
@@ -103,11 +124,43 @@ namespace sp
 
 	};
 
-	using LexerOutput = std::vector<std::string>;
+
 
 	/*
+	 * -
 	 * Lexer
+	 * -
 	 */
+
+	class TokenGroup: public std::pair<const char*, int>
+	{
+	public:
+		constexpr TokenGroup(const char* regex, int capture_group_id):
+			std::pair<const char*, int>(regex, capture_group_id)
+		{
+		}
+
+		inline constexpr operator const char*() const
+		{
+			return first;
+		}
+
+		inline constexpr operator int() const
+		{
+			return second;
+		}
+
+	};
+
+	inline static constexpr TokenGroup GROUP_BLOCK      = {"([A-Za-z0-9_\\-]+)\\s\\{([^{}]+)\\}", -1};
+	inline static constexpr TokenGroup GROUP_WHITESPACE = {"[\\s,]+", 0};
+	inline static constexpr TokenGroup GROUP_NUMBERS    = {"([+-]?([0-9]+([.][0-9]*)?|[.][0-9]+))", 1};
+	inline static constexpr TokenGroup GROUP_SYMBOLS    = {"(([A-Za-z\\-_]+)([0-9]+)?)", 4};
+	inline static constexpr TokenGroup GROUP_STRINGS    = {"(\"(?:[^\"\\\\]|\\\\.)*\")", 7};
+	inline static constexpr TokenGroup GROUP_LISTS      = {"(\\[(.*)\\])", 9};
+
+	using LexerOutput = std::vector<std::string>;
+
 	class Lexer
 	{
 	public:
@@ -118,24 +171,44 @@ namespace sp
 
 	private:
 		ErrCode test_block(LexerOutput& output, const std::string& input);
-		ErrCode tokenize_list(LexerOutput& output, const std::string& input);
+		ErrCode tokenize_list(LexerOutput& output, const std::string& input, int ident = 0);
 
-	private:
+		void split(LexerOutput& output, const std::string& input, const std::string& delimiters);
+		
+		template <typename Arg>
+		std::ostream& build_tokenizer_regex(std::ostream& o, Arg&& arg)
+		{
+			return o << static_cast<std::string>(std::forward<Arg>(arg));
+		}
+
+		template <typename Arg, typename... Args>
+		std::ostream& build_tokenizer_regex(std::ostream& o, Arg&& arg, Args&&... args)
+		{
+			o << static_cast<std::string>(std::forward<Arg>(arg)) << "|";
+
+			return build_tokenizer_regex(o, std::forward<Args>(args)...);
+		}
 
 	};
+	
+
 
 	/*
-	 * "Parser"
+	 * -
+	 * Parser
+	 * -
 	 */
+	 // ...
+	
 
 
 	/*
+	 * -
 	 * Environment
+	 * -
 	 */
+	// ...
+	
 
-	/*
-	 * Utils
-	 */
-	ErrCode load_file(const std::string& path, std::string& out);
 
 }

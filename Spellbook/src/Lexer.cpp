@@ -21,13 +21,22 @@ namespace sp
 		if (stat == FAILURE || blocks.empty())
 			return;
 
-		std::cout << "Name: " << blocks[0] << std::endl;
-		std::cout << "Contents: " << blocks[1] << std::endl;
+		std::cout << "Scene : " << blocks[0] << std::endl;
+		std::cout << "Body  : " << blocks[1] << std::endl;
 
 		std::cout << "----------\n";
 
+
+
+		LexerOutput lines;
+		split(lines, blocks[1], "\n");
+
 		LexerOutput object_strs;
-		tokenize_list(object_strs, blocks[1]);
+		for (auto& l : lines)
+		{
+			tokenize_list(object_strs, l);
+			std::cout << "--------\n";
+		}
 
 	}
 
@@ -35,18 +44,15 @@ namespace sp
 
 	ErrCode Lexer::test_block(LexerOutput& output, const std::string& input)
 	{
-		using namespace std::regex_constants;
-
 		try
 		{
-			std::regex block_regex("([A-Za-z0-9_\\-]+)\\s\\{([^{}]+)\\}");
+			std::regex block_regex(GROUP_BLOCK);
 			for (auto it = std::sregex_iterator(input.begin(), input.end(), block_regex); it != std::sregex_iterator(); it++)
 			{
 				std::smatch match = *it;
 
-				// This makes it so that even elements in the output list
-				// are names of the symbol, odd elements are the bodies.
-				// Could get more elegant with this, idgaf honestly
+				// The output will be an interleaved list of strings, representable like this:
+				// [[Name, Body], [Name, Body], ...]
 				output.push_back(match.str(1));
 				output.push_back(match.str(2));
 			}
@@ -61,14 +67,24 @@ namespace sp
 		return SUCCESS;
 	}
 
-	ErrCode Lexer::tokenize_list(LexerOutput& output, const std::string& input)
+	ErrCode Lexer::tokenize_list(LexerOutput& output, const std::string& input, int ident)
 	{
-		using namespace std::regex_constants;
-
 		try
 		{
-			// std::regex tokenization_regex("[\\s,]+|([+-]?([0-9]+([.][0-9]*)?|[.][0-9]+))|([A-Za-z\\-_]+)([0-9]+)?|(\\\".*\\\")|(\\[(.*)\\])");
-			std::regex tokenization_regex("[\\s,]+|([+-]?([0-9]+([.][0-9]*)?|[.][0-9]+))|(([A-Za-z\\-_]+)([0-9]+)?)|(\"(?:[^\"\\\\]|\\\\.)*\")|(\\[(.*)\\])");
+			std::ostringstream regex_stream;
+			build_tokenizer_regex(
+				regex_stream,
+				GROUP_WHITESPACE,
+				GROUP_NUMBERS,
+				GROUP_SYMBOLS,
+				GROUP_STRINGS,
+				GROUP_LISTS
+			);
+
+			std::cout << regex_stream.str() << std::endl;
+
+			std::regex tokenization_regex(regex_stream.str());
+
 			for (auto it = std::sregex_iterator(input.begin(), input.end(), tokenization_regex); it != std::sregex_iterator(); it++)
 			{
 				std::smatch match = *it;
@@ -76,44 +92,42 @@ namespace sp
 				{
 					switch (i)
 					{
-					case 4:
+					case GROUP_SYMBOLS:
 						// Symbol
 						if (!match.str(i).empty())
-							std::cout << "Symbol: " + match.str(i) + ", ";
+							std::cout << std::string(ident*4, ' ') << "Symbol: " + match.str(i) + "\n";
 						break;
-					case 1:
+					case GROUP_NUMBERS:
 						// Number
 						if (!match.str(i).empty())
-							std::cout << "Number: " + match.str(i) + ", ";
+							std::cout << std::string(ident * 4, ' ') << "Number: " + match.str(i) + "\n";
 						break;
-					case 9:
+					case GROUP_LISTS:
 						// List
 						if (!match.str(i).empty())
 						{
-							std::cout << "List: {\n\t" << std::endl;
+							std::cout << std::string(ident * 4, ' ') << "List: {\n";
 
 							LexerOutput out;
-							tokenize_list(out, match.str(i));
+							tokenize_list(out, match.str(i), ++ident);
 
-							std::cout << "}\n";
-
-							//std::cout << "List: " + match.str(i) + ", ";
+							std::cout << std::string((ident-- - 1) * 4, ' ') << "}\n";
 						}
 						break;
-					case 7:
+					case GROUP_STRINGS:
 						// String
 						if (!match.str(i).empty())
 						{
 							std::string str = match.str(i);
 							std::string trimmed = str.substr(1, str.size() - 2);
-							std::cout << "String: " + trimmed + ", ";
+							// Use `trimmed` later
+							std::cout << std::string(ident * 4, ' ') << "String: " + str + "\n";
 						}
 						break;
 					}
 				}
 
 				output.push_back(match.str());
-				std::cout << std::endl;
 
 			}
 		}
@@ -125,5 +139,18 @@ namespace sp
 		}
 
 		return SUCCESS;
+	}
+
+	void Lexer::split(LexerOutput& output, const std::string& input, const std::string& delimiters)
+	{
+		std::string::size_type last_pos = input.find_first_not_of(delimiters, 0);
+		std::string::size_type pos = input.find_first_of(delimiters, last_pos);
+
+		while (std::string::npos != pos || std::string::npos != last_pos)
+		{
+			output.push_back(input.substr(last_pos, pos - last_pos));
+			last_pos = input.find_first_not_of(delimiters, pos);
+			pos = input.find_first_of(delimiters, last_pos);
+		}
 	}
 }

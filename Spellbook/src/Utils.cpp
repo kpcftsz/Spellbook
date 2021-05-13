@@ -21,4 +21,9 @@ namespace sp
 
 		return SUCCESS;
 	}
+
+	void abort(ErrCode status)
+	{
+		exit(status);
+	}
 }
