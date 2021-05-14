@@ -157,8 +157,8 @@ namespace sp
 	inline static constexpr TokenGroup GROUP_WHITESPACE = {"[\\s,]+", 0x0000};
 	inline static constexpr TokenGroup GROUP_NUMBERS    = {"([+-]?([0-9]+([.][0-9]*)?|[.][0-9]+))", 0x0001};
 	inline static constexpr TokenGroup GROUP_SYMBOLS    = {"(([A-Za-z\\-_]+)([0-9]+)?)", 0x0004};
-	inline static constexpr TokenGroup GROUP_STRINGS    = {"(\"(?:[^\"\\\\]|\\\\.)*\")", 0x0007};
-	inline static constexpr TokenGroup GROUP_LISTS      = {"(\\[(.*)\\])", 0x0009};
+	inline static constexpr TokenGroup GROUP_STRINGS    = {"(\"[^\"\\\\]*(\\\\.[^\"\\\\]*)*\")", 0x0007};
+	inline static constexpr TokenGroup GROUP_LISTS      = {"(\\[([^\\[\\]]*)\\])", 0x000A};
 
 	using LexerOutput = std::vector<std::string>;
 
