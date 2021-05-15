@@ -15,6 +15,8 @@
 #include <iostream>
 #include <fstream>
 #include <exception>
+#include <map>
+#include <unordered_map>
 #include <list>
 #include <regex>
 
@@ -37,13 +39,17 @@ namespace sp
 		OBJ_TRUE,
 		OBJ_FALSE,
 		OBJ_LIST,
-		OBJ_BUILT_IN
+		OBJ_ENVIRONMENT,
+		OBJ_BUILT_IN,
+		OBJ_VOID
 	};
 
 	class Object;
+	class SceneBlock;
 	class TokenGroup;
 	class Lexer;
 	class ListProc;
+	class Environment;
 
 
 
@@ -55,7 +61,7 @@ namespace sp
 
 	ErrCode load_file(const std::string& path, std::string& out);
 	void abort(ErrCode status, const std::string& message = "");
-	std::string print(Object& object);
+	std::string print(Object& object, bool in_list = false);
 
 
 
@@ -121,15 +127,19 @@ namespace sp
 	public:
 		ObjectType type;
 		std::variant<
-			// Numbers
-			float,
-			// Strings/Symbols/Identifiers
-			std::string,
-			// Lists/Functions
-			std::list<Object>,
-			// Built-in functions
-			std::function<Object(std::list<Object>)>
+			float,                                   // Numbers
+			std::string,                             // Strings/Symbols/Identifiers
+			std::list<Object>,                       // Lists/Functions
+			std::function<Object(std::list<Object>)> // Built-in functions
 		> data;
+
+	};
+
+	class SceneBlock
+	{
+	public:
+		std::string name;
+		std::list<Object> calls;
 
 	};
 
@@ -137,7 +147,7 @@ namespace sp
 
 	/*
 	 * -
-	 * Lexer
+	 * Lexer/Parser
 	 * -
 	 */
 
@@ -168,17 +178,12 @@ namespace sp
 	inline static constexpr TokenGroup GROUP_SYMBOLS    = {"(([A-Za-z\\-_]+)([0-9]+)?)", 0x0004};
 	inline static constexpr TokenGroup GROUP_STRINGS    = {"(\"[^\"\\\\]*(\\\\.[^\"\\\\]*)*\")", 0x0007};
 	inline static constexpr TokenGroup GROUP_LISTS      = {"((\\[.*\\]))", 0x000A};
-
-	class ListProc;
+	inline static constexpr TokenGroup GROUP_COMMENTS   = {"(;.*)", 0x000B};
 
 	class Lexer
 	{
 	public:
-		Lexer();
-		~Lexer();
-
-		void process(const std::string& input);
-
+		ErrCode process(std::vector<SceneBlock>& output, const std::string& input);
 		ErrCode process_scene_blocks(std::vector<std::string>& output, const std::string& input);
 		ErrCode process_all_tokens(std::list<Object>& output, const std::string& input);
 
@@ -213,7 +218,6 @@ namespace sp
 		ListProc(Lexer& lexer);
 
 		Object process_list(const std::string& input);
-
 		Object read();
 
 		std::vector<std::string> tokenize(const std::string& input);
@@ -238,19 +242,40 @@ namespace sp
 
 	/*
 	 * -
-	 * Parser
+	 * Evaluator
 	 * -
 	 */
-	 // ...
+	Object evlist(Object& object, Environment& env);
+	Object eval(Object& object, Environment& env);
 	
 
 
 	/*
 	 * -
-	 * Environment
+	 * Environment/Symbol Table
 	 * -
 	 */
-	// ...
+	class Environment
+	{
+	public:
+		explicit Environment(Object& source);
+		Environment() = default;
+
+		void set(const std::string& sym_key, Object obj_value);
+		Environment* find(const std::string& sym_key);
+		Object* get(const std::string& sym_key);
+
+		void init();
+
+		Object as_object();
+
+	private:
+		std::list<Object> to_list(const Environment& env);
+
+	private:
+		std::map<std::string, Object> m_sym_table;
+
+	};
 	
 
 

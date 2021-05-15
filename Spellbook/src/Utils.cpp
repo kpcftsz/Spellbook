@@ -24,7 +24,7 @@ namespace sp
 		exit(status);
 	}
 
-	std::string print(Object& object)
+	std::string print(Object& object, bool in_list)
 	{
 		std::string printed;
 
@@ -34,11 +34,13 @@ namespace sp
 			printed = "<nil>";
 			break;
 		case OBJ_SYMBOL:
-			// Redo this one:
 			printed = object.get_data<std::string>();
 			break;
 		case OBJ_STRING:
-			printed = object.get_data<std::string>();
+			{
+				std::string quote = in_list ? "\"" : "";
+				printed = quote + object.get_data<std::string>() + quote;
+			}
 			break;
 		case OBJ_NUMBER:
 			printed = std::to_string(object.get_data<float>());
@@ -55,7 +57,7 @@ namespace sp
 				printed += "[";
 				int i = 0;
 				for (auto&& item: list) {
-					printed += print(item) + (i != list.size() - 1 ? ", " : "");
+					printed += print(item, true) + (i != list.size() - 1 ? ", " : "");
 					i++;
 				}
 				printed += "]";

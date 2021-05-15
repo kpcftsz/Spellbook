@@ -2,46 +2,58 @@
 
 namespace sp
 {
-	Lexer::Lexer()
-	{
-	}
-
-	Lexer::~Lexer()
-	{
-	}
-
-	void Lexer::process(const std::string& input)
+	// Returns a list of objects 
+	ErrCode Lexer::process(std::vector<SceneBlock>& output, const std::string& input)
 	{
 		std::vector<std::string> blocks;
 		auto stat = process_scene_blocks(blocks, input);
-		if (stat == FAILURE || blocks.empty())
-			return;
-
-		std::regex dialogue_regex(GROUP_DIALOGUE);
-		std::smatch dialogue_match;
-		while (std::regex_search(blocks[1], dialogue_match, dialogue_regex))
+		if (stat == FAILURE || blocks.empty() || blocks.size() % 2 != 0)
 		{
-			std::string name = dialogue_match.str((GROUP_DIALOGUE >> 8) & 0xFF);
-			std::string message = dialogue_match.str((GROUP_DIALOGUE) & 0xFF);
-			std::string statement = "\nSay \"" + name + "\" \"" + normalize_paragraph(message) + "\"\n";
-
-			blocks[1] = std::string(dialogue_match.prefix()) + statement + std::string(dialogue_match.suffix());
+			std::cerr << "Invalid scene block list" << std::endl;
+			return FAILURE;
 		}
 
-		std::vector<std::string> lines;
-		split(lines, blocks[1], "\n");
-
-		std::vector<std::string> object_strs;
-		for (auto& l : lines)
+		for (int i = 0; i < blocks.size(); i += 2)
 		{
-			if (l.empty() || std::regex_search(l, std::regex("^\\s+$")))
-				continue;
+			std::string name = blocks[i];
+			std::string body = blocks[i + 1];
 
-			std::list<Object> objs;
-			process_all_tokens(objs, l);
+			std::regex dialogue_regex(GROUP_DIALOGUE);
+			std::smatch dialogue_match;
+			while (std::regex_search(body, dialogue_match, dialogue_regex))
+			{
+				std::string name = dialogue_match.str((GROUP_DIALOGUE >> 8) & 0xFF);
+				std::string message = dialogue_match.str((GROUP_DIALOGUE) & 0xFF);
+				std::string statement = "\nSay \"" + name + "\" \"" + normalize_paragraph(message) + "\"\n";
 
-			for (auto&& obj: objs)
-				std::cout << print(obj) << std::endl;
+				body = std::string(dialogue_match.prefix()) + statement + std::string(dialogue_match.suffix());
+			}
+
+			SceneBlock block;
+			block.name = name;
+
+			std::vector<std::string> lines;
+			split(lines, body, "\n");
+
+			for (auto& l: lines)
+			{
+				if (l.empty() || std::regex_search(l, std::regex("^\\s+$|^\\s+;.*")))
+					continue;
+
+				Object list_obj{OBJ_LIST};
+				list_obj.data = std::list<Object>();
+				std::list<Object>* objs = list_obj.get_data_ptr<std::list<Object>>();
+
+				if (process_all_tokens(*objs, l) == FAILURE)
+				{
+					std::cerr << "Unknown parser error" << std::endl;
+					return FAILURE;
+				}
+
+				block.calls.push_back(list_obj);
+			}
+
+			output.push_back(block);
 		}
 	}
 
@@ -81,7 +93,8 @@ namespace sp
 				GROUP_NUMBERS,
 				GROUP_SYMBOLS,
 				GROUP_STRINGS,
-				GROUP_LISTS
+				GROUP_LISTS,
+				GROUP_COMMENTS
 			);
 
 			std::regex tokenization_regex(regex_stream.str());
@@ -121,11 +134,12 @@ namespace sp
 						case GROUP_LISTS:
 							output.push_back(ListProc(*this).process_list(match.str(i)));
 							break;
+						case GROUP_COMMENTS:
+							// ...
+							break;
 						}
 					}
 				}
-
-				// ...
 			}
 		}
 		catch (std::regex_error& e)
@@ -212,12 +226,10 @@ namespace sp
 		switch (token[0])
 		{
 		case '[':
-			std::cout << "-- Reading a list --" << std::endl;
 			form = read_list(OBJ_LIST, '[', ']');
 			break;
 		case ']':
-			std::cerr << "Unexpected ']'" << std::endl;
-			abort(FAILURE);
+			abort(FAILURE, "Unexpected ']'");
 			break;
 		default:
 			form = read_object();
@@ -256,20 +268,14 @@ namespace sp
 		std::string token = next();
 
 		if (token.empty())
-		{
-			std::cerr << "Invalid token" << std::endl;
-			abort(FAILURE);
-		}
+			abort(FAILURE, "Invalid token");
 
 		Object form{OBJ_NIL};
 		Object list{OBJ_LIST};
 		list.data = std::list<Object>();
 
 		if (token[0] != start)
-		{
-			std::cerr << "Expected \'" << start << "\'" << std::endl;
-			abort(FAILURE);
-		}
+			abort(FAILURE, std::string("Expected \'") + start + "\'");
 
 		token = peek();
 		while (token[0] != end)

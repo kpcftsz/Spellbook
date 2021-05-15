@@ -6,37 +6,22 @@ int main(int argc, char* argv[])
 	if (sp::load_file("./demo.sp", src))
 		return EXIT_FAILURE;
 
+	std::vector<sp::SceneBlock> blocks;
+
+	sp::Environment env;
+	env.init();
+
 	sp::Lexer lexer;
-	sp::ListProc lisp(lexer);
+	lexer.process(blocks, src);
 
-	// lexer.process(src);
-
-	bool running = true;
-	std::string input;
-	while (running)
+	for (int i = 0; i < blocks.size(); i++)
 	{
-		std::cout << "sp> ";
-		std::getline(std::cin, input);
-		if (input.empty())
-			continue;
-		lisp.clear();
-		lisp.tokenize(input);
-		sp::Object o = lisp.read();
-		if (o.type == sp::OBJ_LIST)
+		std::cout << "Now displaying scene \"" << blocks[i].name << "\":" << std::endl;
+		for (auto& call_obj : blocks[i].calls)
 		{
-			if (!o.get_data<std::list<sp::Object>>().empty())
-			{
-				if (o.get_data<std::list<sp::Object>>().front().get_data<std::string>() == "exit")
-					std::exit(0);
-				if (o.get_data<std::list<sp::Object>>().front().get_data<std::string>() == "load" &&
-					o.get_data<std::list<sp::Object>>().size() == 2)
-				{
-					sp::load_file(o.get_data<std::list<sp::Object>>().back().get_data<std::string>(), src);
-					lexer.process(src);
-				}
-			}
+			sp::Object evaluated = sp::eval(call_obj, env);
+			std::cout << sp::print(evaluated) << std::endl;
 		}
-		std::cout << print(o) << std::endl;
 	}
 
 	return EXIT_SUCCESS;

@@ -145,6 +145,8 @@
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>
+    <ClCompile Include="src\Environment.cpp" />
+    <ClCompile Include="src\Evaluator.cpp" />
     <ClCompile Include="src\Lexer.cpp" />
     <ClCompile Include="src\Main.cpp" />
     <ClCompile Include="src\Utils.cpp" />
