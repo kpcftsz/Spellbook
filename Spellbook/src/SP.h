@@ -1,6 +1,7 @@
 #pragma once
 
 #include <assert.h>
+#include <stdlib.h>
 #include <stdint.h>
 
 #include <string>
@@ -13,6 +14,8 @@
 #include <sstream>
 #include <iostream>
 #include <fstream>
+#include <exception>
+#include <list>
 #include <regex>
 
 namespace sp
@@ -37,6 +40,11 @@ namespace sp
 		OBJ_BUILT_IN
 	};
 
+	class Object;
+	class TokenGroup;
+	class Lexer;
+	class ListProc;
+
 
 
 	/*
@@ -46,7 +54,8 @@ namespace sp
 	 */
 
 	ErrCode load_file(const std::string& path, std::string& out);
-	void abort(ErrCode status);
+	void abort(ErrCode status, const std::string& message = "");
+	std::string print(Object& object);
 
 
 
@@ -151,16 +160,16 @@ namespace sp
 		}
 
 	};
-
+	
 	inline static constexpr TokenGroup GROUP_DIALOGUE   = {"([A-Za-z0-9\\-_]+)(\\s+)?<([^<>]*)(\\s+)?>", 0x0103};
 	inline static constexpr TokenGroup GROUP_BLOCK      = {"([A-Za-z0-9_\\-]+)\\s\\{([^{}]+)\\}", 0x0102};
 	inline static constexpr TokenGroup GROUP_WHITESPACE = {"[\\s,]+", 0x0000};
 	inline static constexpr TokenGroup GROUP_NUMBERS    = {"([+-]?([0-9]+([.][0-9]*)?|[.][0-9]+))", 0x0001};
 	inline static constexpr TokenGroup GROUP_SYMBOLS    = {"(([A-Za-z\\-_]+)([0-9]+)?)", 0x0004};
 	inline static constexpr TokenGroup GROUP_STRINGS    = {"(\"[^\"\\\\]*(\\\\.[^\"\\\\]*)*\")", 0x0007};
-	inline static constexpr TokenGroup GROUP_LISTS      = {"(\\[([^\\[\\]]*)\\])", 0x000A};
+	inline static constexpr TokenGroup GROUP_LISTS      = {"((\\[.*\\]))", 0x000A};
 
-	using LexerOutput = std::vector<std::string>;
+	class ListProc;
 
 	class Lexer
 	{
@@ -168,14 +177,12 @@ namespace sp
 		Lexer();
 		~Lexer();
 
-		void test(const std::string& input);
+		void process(const std::string& input);
+
+		ErrCode process_scene_blocks(std::vector<std::string>& output, const std::string& input);
+		ErrCode process_all_tokens(std::list<Object>& output, const std::string& input);
 
 	private:
-		ErrCode test_block(LexerOutput& output, const std::string& input);
-		ErrCode tokenize_list(LexerOutput& output, const std::string& input, int ident = 0);
-
-		void split(LexerOutput& output, const std::string& input, const std::string& delimiters);
-
 		template <typename Arg>
 		std::ostream& build_tokenizer_regex(std::ostream& o, Arg&& arg)
 		{
@@ -190,7 +197,40 @@ namespace sp
 			return build_tokenizer_regex(o, std::forward<Args>(args)...);
 		}
 
+		void split(std::vector<std::string>& output, const std::string& input, const std::string& delimiters);
+
 		std::string normalize_paragraph(std::string text);
+		std::string normalize_string(std::string text);
+
+	};
+
+	// List processor...
+	// sounds familiar...
+	// hmmmmMMMMMMM...
+	class ListProc
+	{
+	public:
+		ListProc(Lexer& lexer);
+
+		Object process_list(const std::string& input);
+
+		Object read();
+
+		std::vector<std::string> tokenize(const std::string& input);
+
+		void clear();
+
+	private:
+		Object read_list(ObjectType type, char start, char end);
+		Object read_object();
+
+		std::string peek();
+		std::string next();
+
+	private:
+		Lexer& m_lexer;
+		std::vector<std::string> m_tokens;
+		int m_read_index;
 
 	};
 	

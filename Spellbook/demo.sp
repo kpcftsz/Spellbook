@@ -1,4 +1,4 @@
-Intro {
+﻿Intro {
     SET_COMPOSITE_TRACK 0 Source BG_ROOM01
     SET_AUDIO_TRACK 0 Source Easygoing Loop
 
@@ -6,17 +6,30 @@ Intro {
     SET_COMPOSITE_TRACK 1 Position [-.5, 0]
     SET_AUDIO_TRACK 1 Source Alice_Voice_00 Once 
 
+
+
+
     Alice <
-    Wow! I hope this project goes somewhere!
-    Pick a project so difficult that nobody believes you can do it
+	 Wow! I hope this project goes somewhere!
+	  Pick a project so difficult that nobody believes you can do it.
+
+	  He said to me... "Fuck you"
+
+
+
+	   ਜ ਝ ਞ ਟ ਠ 
 	>
     
     SET_COMPOSITE_TRACK 2 Source Bob_N_01
-    SET_COMPOSITE_TRACK 2 Position [0, .5]
+    SET_COMPOSITE_TRACK 2 Position [0, .5, 5, 7, [1, 2, 3, [4, 5]]]
     SET_AUDIO_TRACK 1 Source Bob_Voice_00 Once
 
+	[0.5, [1, 2, 3]]
+
+	[[1, 2], [3, 4], [5, 6], [7, 8]]
+
     Bob <
-	Channel your \"I'll fucking show them\" energy.
+		Channel your "I'll fucking show them" energy.
 	>
 }
 Scene01 {
