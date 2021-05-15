@@ -2,7 +2,6 @@
 
 namespace sp
 {
-	// Returns a list of objects 
 	ErrCode Lexer::process(std::vector<SceneBlock>& output, const std::string& input)
 	{
 		std::vector<std::string> blocks;
